@@ -18,6 +18,8 @@ model User {
   sessions      Session[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  Order Order[]
 }
  
 model Account {
@@ -91,6 +93,7 @@ model Restaurant {
   @@index([ownerEmail])
   MenuItem MenuItem[]
   OptionGroup OptionGroup[]
+  Order Order[]
 }
 
 model Category {
@@ -208,4 +211,60 @@ model MenuItemOptionGroup {
 
   @@unique([itemId, groupId])
   @@index([groupId])
+}
+
+// --- Enums ---
+enum OrderStatus {
+  DRAFT
+  PAID
+  CANCELED
+}
+
+// --- Models ---
+model Order {
+  id            String      @id @default(cuid())
+
+  // Tenant scope
+  restaurantId  String
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Link to customer via email (optional guest checkout)
+  customerEmail String?
+  customer      User?       @relation(fields: [customerEmail], references: [email], onDelete: SetNull)
+
+  status        OrderStatus @default(DRAFT)
+
+  // Simple money snapshot (you can grow this later)
+  subtotal      Decimal     @default(0) @db.Decimal(10,2)
+  total         Decimal     @default(0) @db.Decimal(10,2)
+
+  // Stripe (Checkout-only MVP)
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String?
+
+  items         OrderItem[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([restaurantId, createdAt])
+  @@index([customerEmail])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Snapshots so menu edits don't affect old orders
+  menuItemId   String
+  itemTitle    String
+  variantName  String?
+  unitPrice    Decimal  @default(0) @db.Decimal(10,2)
+  quantity     Int      @default(1)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([orderId])
 }

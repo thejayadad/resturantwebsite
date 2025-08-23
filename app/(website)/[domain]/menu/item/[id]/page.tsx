@@ -1,6 +1,8 @@
+// app/[domain]/menu/item/[id]/page.tsx
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { addToCart } from '@/lib/actions/add-to-cart' // ✅ your action
 
 function formatUSD(v: string | number) {
   const n = typeof v === 'string' ? Number(v) : v
@@ -62,6 +64,7 @@ export default async function TenantItemPage({ params }: { params: { domain: str
     <div className="mx-auto max-w-3xl p-6 space-y-6">
       <div className="flex items-center justify-between">
         <Link href={`/${params.domain}/menu`} className="text-sm underline">← Back to Menu</Link>
+        <Link href={`/${params.domain}/cart`} className="text-sm underline">View cart</Link>
       </div>
 
       <div className="space-y-1">
@@ -72,6 +75,7 @@ export default async function TenantItemPage({ params }: { params: { domain: str
         <p className="text-sm text-neutral-500">From <span className="font-medium">{defaultPrice}</span></p>
       </div>
 
+      {/* Options */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Options</h2>
         {attachments.length === 0 && <p className="text-sm text-neutral-500">No options for this item.</p>}
@@ -107,6 +111,27 @@ export default async function TenantItemPage({ params }: { params: { domain: str
           )
         })}
       </section>
+
+      {/* ✅ Add to cart (simple: default variant, no options yet) */}
+      <div className="border-t pt-4">
+        <form action={addToCart} className="flex items-center gap-3">
+          <input type="hidden" name="domain" value={params.domain} />
+          <input type="hidden" name="itemId" value={item.id} />
+          <label className="text-sm">
+            Qty:{' '}
+            <input
+              name="quantity"
+              type="number"
+              min={1}
+              defaultValue={1}
+              className="w-16 rounded border px-2 py-1 text-sm"
+            />
+          </label>
+          <button className="rounded-lg bg-neutral-900 text-white px-4 py-2">
+            Add to cart
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
