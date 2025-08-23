@@ -81,7 +81,7 @@ model Restaurant {
   postalCode    String   @default("")
   tz            String   @default("America/New_York")
   isActive      Boolean  @default(true)
-
+  categories     Category[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -91,3 +91,21 @@ model Restaurant {
   @@index([ownerEmail])
 }
 
+model Category {
+  id           String      @id @default(cuid())
+  restaurantId String
+  name         String
+  sortOrder    Int         @default(0)
+  isActive     Boolean     @default(true)
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Unique per restaurant (two restaurants can both have "Lunch Specials")
+  @@unique([restaurantId, name])
+
+  // Good for ordered lists in queries
+  @@index([restaurantId, sortOrder])
+}

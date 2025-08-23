@@ -1,17 +1,16 @@
-import React from 'react'
+import Link from 'next/link'
 
-const layout = (
-    {
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>
-) => {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>
-        {children}
+      <nav className="border-b bg-white">
+        <div className="mx-auto max-w-5xl flex gap-4 p-3 text-sm">
+          <Link href="/dashboard">Home</Link>
+          <Link href="/dashboard/restaurant">Restaurant</Link>
+          <Link href="/dashboard/categories">Categories</Link>
+        </div>
+      </nav>
+      <main className="mx-auto max-w-5xl p-6">{children}</main>
     </div>
   )
 }
-
-export default layout
