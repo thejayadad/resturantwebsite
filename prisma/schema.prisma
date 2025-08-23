@@ -1,0 +1,94 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+ 
+generator client {
+  provider = "prisma-client-js"
+}
+ 
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+    restaurants Restaurant[]
+
+  accounts      Account[]
+  sessions      Session[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([provider, providerAccountId])
+}
+ 
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+ 
+  @@id([identifier, token])
+}
+ 
+// ── Restaurant owned by a user (via email)
+model Restaurant {
+  id            String   @id @default(cuid())
+
+  // owner by email (references User.email)
+  ownerEmail    String
+  owner         User     @relation(fields: [ownerEmail], references: [email], onDelete: Cascade)
+
+  // business identity
+  name          String   @unique           // must be globally unique
+  domain        String?  @unique           // must be globally unique if set
+  description   String?
+  phone         String?
+
+  // "location" fields folded in
+  addressLine1  String   @default("")
+  addressLine2  String?
+  city          String   @default("")
+  state         String   @default("")
+  postalCode    String   @default("")
+  tz            String   @default("America/New_York")
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Enforce one restaurant per owner (remove this if you want multiple per user)
+  @@unique([ownerEmail])
+
+  @@index([ownerEmail])
+}
+
