@@ -89,6 +89,8 @@ model Restaurant {
   @@unique([ownerEmail])
 
   @@index([ownerEmail])
+  MenuItem MenuItem[]
+  OptionGroup OptionGroup[]
 }
 
 model Category {
@@ -108,4 +110,102 @@ model Category {
 
   // Good for ordered lists in queries
   @@index([restaurantId, sortOrder])
+  MenuItem MenuItem[]
+}
+
+model MenuItem {
+  id           String      @id @default(cuid())
+  restaurantId String
+  categoryId   String?
+  code         String?     // menu number like "12B"
+  title        String
+  description  String?
+  isAvailable  Boolean     @default(true)
+
+  variants     MenuItemVariant[]
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category     Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([restaurantId])
+  @@index([categoryId])
+  @@unique([restaurantId, code]) // code is optional but unique within a restaurant if set
+  MenuItemOptionGroup MenuItemOptionGroup[]
+}
+
+model MenuItemVariant {
+  id        String    @id @default(cuid())
+  itemId    String
+  name      String     // e.g. "Lunch", "Dinner"
+  price     Decimal    @db.Decimal(10,2)
+  isDefault Boolean    @default(false)
+
+  item      MenuItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([itemId, name])
+}
+
+enum SelectionType {
+  SINGLE
+  MULTI
+}
+
+model OptionGroup {
+  id            String        @id @default(cuid())
+  restaurantId  String
+  name          String
+  description   String?
+  selectionType SelectionType @default(SINGLE)
+  minSelect     Int           @default(0)
+  maxSelect     Int?
+  isActive      Boolean       @default(true)
+
+  options       Option[]
+  items         MenuItemOptionGroup[]
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+}
+
+model Option {
+  id          String      @id @default(cuid())
+  groupId     String
+  name        String
+  priceDelta  Decimal      @default(0.0) @db.Decimal(10,2)
+  sortOrder   Int          @default(0)
+  isAvailable Boolean      @default(true)
+
+  group       OptionGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([groupId, name])
+  @@index([groupId])
+}
+
+model MenuItemOptionGroup {
+  id        String   @id @default(cuid())
+  itemId    String
+  groupId   String
+  required  Boolean  @default(false)
+  minSelect Int      @default(0)
+  maxSelect Int?
+
+  item      MenuItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  group     OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, groupId])
+  @@index([groupId])
 }
