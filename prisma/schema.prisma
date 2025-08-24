@@ -251,20 +251,38 @@ model Order {
   @@index([customerEmail])
 }
 
+// Add this field to OrderItem
 model OrderItem {
   id           String   @id @default(cuid())
   orderId      String
   order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  // Snapshots so menu edits don't affect old orders
   menuItemId   String
   itemTitle    String
   variantName  String?
   unitPrice    Decimal  @default(0) @db.Decimal(10,2)
+
+  // NEW: sum of all option price deltas for this line
+  optionTotal  Decimal  @default(0) @db.Decimal(10,2)
+
   quantity     Int      @default(1)
+
+  // NEW: snapshot each chosen option
+  options      OrderItemOption[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([orderId])
+}
+
+// NEW: snapshot chosen options on a line
+model OrderItemOption {
+  id          String   @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  groupName   String
+  optionName  String
+  priceDelta  Decimal  @default(0) @db.Decimal(10,2)
 }

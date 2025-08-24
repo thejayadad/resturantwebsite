@@ -60,78 +60,108 @@ export default async function TenantItemPage({ params }: { params: { domain: str
     return price ? formatUSD(price.toString()) : ''
   })()
 
-  return (
-    <div className="mx-auto max-w-3xl p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <Link href={`/${params.domain}/menu`} className="text-sm underline">← Back to Menu</Link>
-        <Link href={`/${params.domain}/cart`} className="text-sm underline">View cart</Link>
-      </div>
+  // app/[domain]/menu/item/[id]/page.tsx  (only the return block shown)
+return (
+  <div className="mx-auto max-w-3xl p-6 space-y-6">
+    <div className="flex items-center justify-between">
+      <Link href={`/${params.domain}/menu`} className="text-sm underline">← Back to Menu</Link>
+      <Link href={`/${params.domain}/cart`} className="text-sm underline">View cart</Link>
+    </div>
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">
-          {item.title} {item.code ? <span className="text-sm text-neutral-500">({item.code})</span> : null}
-        </h1>
-        {item.description ? <p className="text-neutral-600">{item.description}</p> : null}
-        <p className="text-sm text-neutral-500">From <span className="font-medium">{defaultPrice}</span></p>
-      </div>
+    <div className="space-y-1">
+      <h1 className="text-2xl font-bold">
+        {item.title} {item.code ? <span className="text-sm text-neutral-500">({item.code})</span> : null}
+      </h1>
+      {item.description ? <p className="text-neutral-600">{item.description}</p> : null}
+      <p className="text-sm text-neutral-500">From <span className="font-medium">{defaultPrice}</span></p>
+    </div>
+
+    {/* ✅ One form that includes options + qty + submit */}
+    <form action={addToCart} className="space-y-6">
+      <input type="hidden" name="domain" value={params.domain} />
+      <input type="hidden" name="itemId" value={item.id} />
 
       {/* Options */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Options</h2>
         {attachments.length === 0 && <p className="text-sm text-neutral-500">No options for this item.</p>}
+
         {attachments.map(att => {
           const g = att.group
           if (!g.isActive) return null
           const effMin = att.minSelect ?? g.minSelect ?? 0
           const effMax = g.selectionType === 'SINGLE' ? 1 : (att.maxSelect ?? g.maxSelect ?? null)
+
           return (
-            <div key={att.id} className="rounded-xl border p-4 space-y-2">
+            <div key={att.id} className="rounded-xl border p-4 space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="font-medium">
                   {g.name}{' '}
-                  <span className="text-xs text-neutral-500">({g.selectionType}{att.required ? ', required' : ''})</span>
+                  <span className="text-xs text-neutral-500">
+                    ({g.selectionType}{att.required ? ', required' : ''})
+                  </span>
                 </div>
                 <div className="text-xs text-neutral-500">
                   {`Select ${effMin}${effMax ? `–${effMax}` : g.selectionType === 'SINGLE' ? ' of 1' : '+'}`}
                 </div>
               </div>
               {g.description ? <p className="text-sm text-neutral-600">{g.description}</p> : null}
+
+              {/* REAL inputs now */}
               <ul className="grid gap-2 sm:grid-cols-2">
                 {g.options.filter(o => o.isAvailable).map(o => (
-                  <li key={o.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                    <span className="text-sm">{o.name}</span>
-                    <span className="text-xs text-neutral-600">
-                      {Number(o.priceDelta) > 0 ? `+ ${formatUSD(o.priceDelta.toString())}` : ''}
-                    </span>
+                  <li key={o.id} className="rounded-lg border">
+                    <label className="flex items-center justify-between px-3 py-2 gap-3 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        {g.selectionType === 'SINGLE' ? (
+                          <input
+                            type="radio"
+                            name={`opt_${g.id}`}
+                            value={o.id}
+                            required={att.required} // HTML-level minimal enforcement
+                          />
+                        ) : (
+                          <input
+                            type="checkbox"
+                            name={`opt_${g.id}[]`}
+                            value={o.id}
+                          />
+                        )}
+                        <span className="text-sm">{o.name}</span>
+                      </div>
+                      <span className="text-xs text-neutral-600">
+                        {Number(o.priceDelta) > 0 ? `+ ${formatUSD(o.priceDelta.toString())}` : ''}
+                      </span>
+                    </label>
                   </li>
                 ))}
-                {g.options.length === 0 && <li className="text-sm text-neutral-500">No choices available.</li>}
+                {g.options.length === 0 && (
+                  <li className="text-sm text-neutral-500">No choices available.</li>
+                )}
               </ul>
             </div>
           )
         })}
       </section>
 
-      {/* ✅ Add to cart (simple: default variant, no options yet) */}
-      <div className="border-t pt-4">
-        <form action={addToCart} className="flex items-center gap-3">
-          <input type="hidden" name="domain" value={params.domain} />
-          <input type="hidden" name="itemId" value={item.id} />
-          <label className="text-sm">
-            Qty:{' '}
-            <input
-              name="quantity"
-              type="number"
-              min={1}
-              defaultValue={1}
-              className="w-16 rounded border px-2 py-1 text-sm"
-            />
-          </label>
-          <button className="rounded-lg bg-neutral-900 text-white px-4 py-2">
-            Add to cart
-          </button>
-        </form>
+      {/* Qty + submit */}
+      <div className="border-t pt-4 flex items-center gap-3">
+        <label className="text-sm">
+          Qty:{' '}
+          <input
+            name="quantity"
+            type="number"
+            min={1}
+            defaultValue={1}
+            className="w-16 rounded border px-2 py-1 text-sm"
+          />
+        </label>
+        <button className="rounded-lg bg-neutral-900 text-white px-4 py-2">
+          Add to cart
+        </button>
       </div>
-    </div>
-  )
+    </form>
+  </div>
+)
+
 }

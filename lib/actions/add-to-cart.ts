@@ -1,9 +1,13 @@
+// lib/actions/add-to-cart.ts
 'use server'
 
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+
+// helper
+const toNum = (v: unknown) => (typeof v === 'string' ? Number(v) : Number(v))
 
 export async function addToCart(formData: FormData) {
   const domain = String(formData.get('domain') || '').trim()
@@ -17,23 +21,45 @@ export async function addToCart(formData: FormData) {
   })
   if (!restaurant) throw new Error('Restaurant not found')
 
-  // Load item + default variant price (or first)
+  // Load item + default variant
   const item = await prisma.menuItem.findFirst({
     where: { id: itemId, restaurantId: restaurant.id, isAvailable: true },
     select: {
-      id: true, title: true,
+      id: true,
+      title: true,
       variants: { select: { name: true, price: true, isDefault: true }, orderBy: { createdAt: 'asc' } },
     },
   })
-  if (!item || item.variants.length === 0) throw new Error('Item not available')
+  if (!item || item.variants.length === 0) throw new Error('Item unavailable')
 
   const variant = item.variants.find(v => v.isDefault) ?? item.variants[0]
   const unitPrice = variant.price.toString()
 
+  // Gather selected option IDs from formData
+  // We accept keys: opt_<groupId> (radio) and opt_<groupId>[] (checkbox group)
+  const selectedOptionIds = new Set<string>()
+  for (const key of Array.from(formData.keys())) {
+    if (!key.startsWith('opt_')) continue
+    const values = formData.getAll(key).map(v => String(v))
+    for (const v of values) if (v) selectedOptionIds.add(v)
+  }
+  const optionIds = Array.from(selectedOptionIds)
+
+  // Fetch options to compute optionTotal and snapshot names
+  const optionRows = optionIds.length
+    ? await prisma.option.findMany({
+        where: { id: { in: optionIds } },
+        select: { id: true, name: true, priceDelta: true, group: { select: { name: true } } },
+      })
+    : []
+
+  const optionTotal = optionRows
+    .reduce((sum, o) => sum + Number(o.priceDelta), 0)
+    .toFixed(2)
+
+  // Reuse/create draft order tracked in a cookie
   const session = await auth()
   const customerEmail = session?.user?.email ?? null
-
-  // Reuse / create a DRAFT order as “cart”, tracked by cookie
   const c = cookies()
   const cartId = (await c).get('cartId')?.value
 
@@ -58,7 +84,7 @@ export async function addToCart(formData: FormData) {
     ;(await c).set('cartId', order.id, { httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 })
   }
 
-  // Add line (simple: no merging; you can merge same (item+variant) later)
+  // Create line with option snapshots
   await prisma.orderItem.create({
     data: {
       orderId: order.id,
@@ -66,17 +92,28 @@ export async function addToCart(formData: FormData) {
       itemTitle: item.title,
       variantName: variant.name,
       unitPrice,
+      optionTotal,
       quantity,
+      options: {
+        create: optionRows.map(o => ({
+          groupName: o.group.name,
+          optionName: o.name,
+          priceDelta: o.priceDelta.toString(),
+        })),
+      },
     },
   })
 
-  // Recompute subtotal/total
+  // Recompute totals: (unitPrice + optionTotal) * qty
   const lines = await prisma.orderItem.findMany({
     where: { orderId: order.id },
-    select: { unitPrice: true, quantity: true },
+    select: { unitPrice: true, optionTotal: true, quantity: true },
   })
   const subtotal = lines
-    .reduce((sum, l) => sum + Number(l.unitPrice) * l.quantity, 0)
+    .reduce(
+      (sum, l) => sum + (Number(l.unitPrice) + Number(l.optionTotal)) * l.quantity,
+      0
+    )
     .toFixed(2)
 
   await prisma.order.update({

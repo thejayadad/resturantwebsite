@@ -10,6 +10,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard/categories">Categories</Link>
 <Link href="/dashboard/menu">Menu</Link>
 <Link href="/dashboard/options">Options</Link>
+<Link href="/dashboard/orders" className="underline text-sm">
+  View Orders
+</Link>
 
         </div>
       </nav>
