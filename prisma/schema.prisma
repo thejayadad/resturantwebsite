@@ -86,7 +86,7 @@ model Restaurant {
   categories     Category[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
+  appearance     Json?
   // Enforce one restaurant per owner (remove this if you want multiple per user)
   @@unique([ownerEmail])
 
@@ -217,6 +217,9 @@ model MenuItemOptionGroup {
 enum OrderStatus {
   DRAFT
   PAID
+  PREPARING
+  READY
+  COMPLETED
   CANCELED
 }
 

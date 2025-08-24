@@ -3,7 +3,6 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 // Reuse helper
@@ -72,7 +71,6 @@ export async function createGroup(formData: FormData): Promise<void> {
   } catch {}
 
   revalidatePath('/dashboard/options')
-  redirect('/dashboard/options')
 }
 
 const updateGroupSchema = z.object({
@@ -124,7 +122,6 @@ export async function updateGroup(formData: FormData): Promise<void> {
   } catch {}
 
   revalidatePath('/dashboard/options')
-  redirect('/dashboard/options')
 }
 
 export async function deleteGroup(formData: FormData): Promise<void> {
@@ -142,7 +139,6 @@ export async function deleteGroup(formData: FormData): Promise<void> {
   })
 
   revalidatePath('/dashboard/options')
-  redirect('/dashboard/options')
 }
 
 /* -------------------- Options -------------------- */
@@ -187,7 +183,6 @@ export async function createOption(formData: FormData): Promise<void> {
   } catch {}
 
   revalidatePath('/dashboard/options')
-  redirect('/dashboard/options')
 }
 
 const updateOptionSchema = z.object({
@@ -225,7 +220,6 @@ export async function updateOption(formData: FormData): Promise<void> {
   } catch {}
 
   revalidatePath('/dashboard/options')
-  redirect('/dashboard/options')
 }
 
 export async function deleteOption(formData: FormData): Promise<void> {
@@ -243,7 +237,6 @@ export async function deleteOption(formData: FormData): Promise<void> {
   await prisma.option.delete({ where: { id } })
 
   revalidatePath('/dashboard/options')
-  redirect('/dashboard/options')
 }
 
 /* -------------------- Attach to Items -------------------- */
@@ -295,7 +288,6 @@ export async function attachGroupToItem(formData: FormData): Promise<void> {
   } catch {}
 
   revalidatePath('/dashboard/menu')
-  redirect('/dashboard/menu')
 }
 
 const updateAttachSchema = z.object({
@@ -343,7 +335,6 @@ export async function updateAttachment(formData: FormData): Promise<void> {
   await prisma.menuItemOptionGroup.update({ where: { id }, data })
 
   revalidatePath('/dashboard/menu')
-  redirect('/dashboard/menu')
 }
 
 export async function detachGroupFromItem(formData: FormData): Promise<void> {
@@ -360,5 +351,4 @@ export async function detachGroupFromItem(formData: FormData): Promise<void> {
 
   await prisma.menuItemOptionGroup.delete({ where: { id } })
   revalidatePath('/dashboard/menu')
-  redirect('/dashboard/menu')
 }

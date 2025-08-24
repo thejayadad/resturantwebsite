@@ -123,7 +123,9 @@ export default async function DashboardOrdersPage() {
               return (
                 <tr key={o.id} className="border-t align-top">
                   <td className="px-4 py-3">
-                    <div className="font-mono text-xs">{o.id}</div>
+                    <Link href={`/dashboard/orders/${o.id}`} className="font-mono text-xs underline">
+                    {o.id}
+                </Link>
                   </td>
                   <td className="px-4 py-3 text-sm">{fmt(o.createdAt)}</td>
                   <td className="px-4 py-3 text-sm">

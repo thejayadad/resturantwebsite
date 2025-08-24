@@ -95,12 +95,15 @@ export default async function OptionsPage() {
               </label>
               <div className="md:col-span-6 flex gap-2">
                 <button className="rounded border px-3 py-2 text-sm" type="submit">Save Group</button>
-                <form action={deleteGroup}>
+         
+              </div>
+            </form>
+                 <div>
+                      <form action={deleteGroup}>
                   <input type="hidden" name="id" value={g.id} />
                   <button className="rounded border px-3 py-2 text-sm hover:bg-red-50" type="submit">Delete Group</button>
                 </form>
               </div>
-            </form>
 
             {/* Options in this group */}
             <div className="rounded-xl border p-3">

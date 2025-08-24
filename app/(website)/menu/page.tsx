@@ -1,6 +1,7 @@
 // app/menu/page.tsx
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import { mergeTheme } from '@/lib/theme/config'    // ✅
 
 function formatUSD(v: string | number) {
   const n = typeof v === 'string' ? Number(v) : v
