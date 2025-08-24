@@ -21,10 +21,12 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
     "@prisma/client": "^6.14.0",
+    "lucide-react": "^0.541.0",
     "next": "15.5.0",
     "next-auth": "^5.0.0-beta.29",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-icons": "^5.5.0",
     "stripe": "^18.4.0",
     "zod": "^4.1.0"
   },
