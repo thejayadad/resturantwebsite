@@ -18,6 +18,8 @@ model User {
   sessions      Session[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  Order Order[]
 }
  
 model Account {
@@ -81,13 +83,209 @@ model Restaurant {
   postalCode    String   @default("")
   tz            String   @default("America/New_York")
   isActive      Boolean  @default(true)
-
+  categories     Category[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
+  appearance     Json?
   // Enforce one restaurant per owner (remove this if you want multiple per user)
   @@unique([ownerEmail])
 
   @@index([ownerEmail])
+  MenuItem MenuItem[]
+  OptionGroup OptionGroup[]
+  Order Order[]
 }
 
+model Category {
+  id           String      @id @default(cuid())
+  restaurantId String
+  name         String
+  sortOrder    Int         @default(0)
+  isActive     Boolean     @default(true)
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Unique per restaurant (two restaurants can both have "Lunch Specials")
+  @@unique([restaurantId, name])
+
+  // Good for ordered lists in queries
+  @@index([restaurantId, sortOrder])
+  MenuItem MenuItem[]
+}
+
+model MenuItem {
+  id           String      @id @default(cuid())
+  restaurantId String
+  categoryId   String?
+  code         String?     // menu number like "12B"
+  title        String
+  description  String?
+  isAvailable  Boolean     @default(true)
+
+  variants     MenuItemVariant[]
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category     Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([restaurantId])
+  @@index([categoryId])
+  @@unique([restaurantId, code]) // code is optional but unique within a restaurant if set
+  MenuItemOptionGroup MenuItemOptionGroup[]
+}
+
+model MenuItemVariant {
+  id        String    @id @default(cuid())
+  itemId    String
+  name      String     // e.g. "Lunch", "Dinner"
+  price     Decimal    @db.Decimal(10,2)
+  isDefault Boolean    @default(false)
+
+  item      MenuItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([itemId, name])
+}
+
+enum SelectionType {
+  SINGLE
+  MULTI
+}
+
+model OptionGroup {
+  id            String        @id @default(cuid())
+  restaurantId  String
+  name          String
+  description   String?
+  selectionType SelectionType @default(SINGLE)
+  minSelect     Int           @default(0)
+  maxSelect     Int?
+  isActive      Boolean       @default(true)
+
+  options       Option[]
+  items         MenuItemOptionGroup[]
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+}
+
+model Option {
+  id          String      @id @default(cuid())
+  groupId     String
+  name        String
+  priceDelta  Decimal      @default(0.0) @db.Decimal(10,2)
+  sortOrder   Int          @default(0)
+  isAvailable Boolean      @default(true)
+
+  group       OptionGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([groupId, name])
+  @@index([groupId])
+}
+
+model MenuItemOptionGroup {
+  id        String   @id @default(cuid())
+  itemId    String
+  groupId   String
+  required  Boolean  @default(false)
+  minSelect Int      @default(0)
+  maxSelect Int?
+
+  item      MenuItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  group     OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, groupId])
+  @@index([groupId])
+}
+
+// --- Enums ---
+enum OrderStatus {
+  DRAFT
+  PAID
+  PREPARING
+  READY
+  COMPLETED
+  CANCELED
+}
+
+// --- Models ---
+model Order {
+  id            String      @id @default(cuid())
+
+  // Tenant scope
+  restaurantId  String
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Link to customer via email (optional guest checkout)
+  customerEmail String?
+  customer      User?       @relation(fields: [customerEmail], references: [email], onDelete: SetNull)
+
+  status        OrderStatus @default(DRAFT)
+
+  // Simple money snapshot (you can grow this later)
+  subtotal      Decimal     @default(0) @db.Decimal(10,2)
+  total         Decimal     @default(0) @db.Decimal(10,2)
+
+  // Stripe (Checkout-only MVP)
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String?
+
+  items         OrderItem[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([restaurantId, createdAt])
+  @@index([customerEmail])
+}
+
+// Add this field to OrderItem
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  menuItemId   String
+  itemTitle    String
+  variantName  String?
+  unitPrice    Decimal  @default(0) @db.Decimal(10,2)
+
+  // NEW: sum of all option price deltas for this line
+  optionTotal  Decimal  @default(0) @db.Decimal(10,2)
+
+  quantity     Int      @default(1)
+
+  // NEW: snapshot each chosen option
+  options      OrderItemOption[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([orderId])
+}
+
+// NEW: snapshot chosen options on a line
+model OrderItemOption {
+  id          String   @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  groupName   String
+  optionName  String
+  priceDelta  Decimal  @default(0) @db.Decimal(10,2)
+}
